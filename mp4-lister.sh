@@ -63,5 +63,13 @@ function parseDir() {
 	cd "${prevPath}"
 }
 
+function printNewList() {
+	if (( ${#NEW_LIST[@]} > 0 )); then {
+		echo ""
+		printf "%s\n" "${NEW_LIST[@]}"
+	} fi
+}
 
 parseDir "${STARTING_DIR}"
+
+printNewList
