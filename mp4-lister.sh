@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
-declare -i DEBUG=1
-declare -i DRYRUN=1
-declare -i FORCE=0
-declare STARTING_DIR="/storage/emulated/0/Videos"
-declare -a NEW_LIST=()
-declare TIMESTAMP=""
-STARTING_DIR2="/storage/emulated/0/Videos/X1/XV/XV (Blowbang -- 2026.05.30)"
+declare -gi DEBUG=0
+declare -gi DRYRUN=0
+declare -gi FORCE=0
+declare -g STARTING_DIR="/storage/emulated/0/Videos"
+declare -ga NEW_LIST=()
+declare -g TIMESTAMP=""
 
 function debug() {
 	if (( DEBUG > 0 )); then
@@ -52,7 +51,7 @@ function parseDir() {
 	mapfile -t vids < <(getVids)
 	mapfile -t dirs < <(getDirs)
 	
-	debug " "
+	log " "
 	debug "Name: ${name}"
 	debug "Parent: ${parent}"
 	debug "Path: ${path}"
@@ -89,7 +88,7 @@ function parseDir() {
 			
 			if (( DRYRUN == 0 )); then {
 				generateList "${name}" "${parent}" "${path}" "${vids[@]}" >"${listpath}" \
-				&& log "Saved List: %s\n" "${list}" \
+				&& log "Saved List: ${list}" \
 				&& debug "Saved List to: ${listpath}"
 			} else {
 				generateList "${name}" "${parent}" "${path}" "${vids[@]}"
@@ -150,7 +149,7 @@ function printNewList() {
 		if (( DRYRUN == 0 )); then {
 			if [[ ! -d "${dirpath}" ]]; then mkdir -p "${dirpath}"; fi
 			printNewList_generate >"${filepath}" \
-			&& printf "Saved List: %s\n" "${filename}" \
+			&& log "Saved List: ${filename}" \
 			&& debug "Saved List to: ${filepath}"
 		} else {
 			printNewList_generate
@@ -161,7 +160,7 @@ function printNewList() {
 
 function printNewList_generate() {
 	printf "%s: %s\n" "Date/Time" "${TIMESTAMP}"
-	printf "%s: %s\n" "New List Items" "${#NEW_LIST[@]}"
+	printf "%s: %s%s\n" "New List Items" "${#NEW_LIST[@]}" "$(if (( FORCE > 0)); then echo ' (Forced)'; fi )"
 	echo ""
 	printf "• %s\n" "${NEW_LIST[@]}"
 }
@@ -196,10 +195,16 @@ function parseArgs() {
 	DRYRUN="${dryrun}"
 	FORCE="${force}"
 	if [[ "${dir}" != "" && -d "${dir}" ]]; then STARTING_DIR="${dir}"; fi
+	
+	debug "FORCE: ${FORCE}"
+	debug "DEBUG: ${DEBUG}"
+	debug "DRYRUN: ${DRYRUN}"
+	debug "DIR: ${STARTING_DIR}"
 }
 
 function main() {
 	parseArgs "$@"
+	if (( FORCE > 0 )); then log "-=-=-=-=-=-=[ FORCE MODE ]=-=-=-=-=-=-"; fi
 	parseDir "${STARTING_DIR}"
 	log "Done parsing directories. Outputting new lists..."
 	printNewList "${STARTING_DIR}"
