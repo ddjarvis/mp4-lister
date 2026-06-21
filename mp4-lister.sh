@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
 
+declare -i DEBUG=1
 declare STARTING_DIR="/storage/emulated/0/Videos"
 declare -a NEW_LIST=()
+declare TIMESTAMP=""
 STARTING_DIR2="/storage/emulated/0/Videos/X1/XV/XV (Blowbang -- 2026.05.30)"
+
+function debug() {
+	if (( DEBUG > 0 )); then
+		if [[ "$1" == "." || "$1" == " " || "$1" == "" ]]; then {
+			echo ""
+		} else {
+			printf "\e[1;96m%s\e[0m %s\n" "[DEBUG]" "${1:-Lorem ipsum dolor sit amet...}"
+		} fi
+	fi
+}
 function getVids() {
 	ls -1Ntr *.mp4 2>/dev/null
 }
-
 function getDirs() {
 	ls -d1N */ 2>/dev/null | sed -r 's/(.+)\//\1/g'
 }
@@ -17,6 +28,7 @@ function parseDir() {
 	local parent
 	local name
 	local list
+	local listpath
 	local dir
 	local entry
 	local dirs=()
@@ -30,31 +42,35 @@ function parseDir() {
 	mapfile -t vids < <(getVids)
 	mapfile -t dirs < <(getDirs)
 	
-	echo ""
-	printf "%s: %s\n" "Name" "${name}"
-	printf "%s: %s\n" "Parent" "${parent}"
-	printf "%s: %s\n" "Path" "${path}"
-	printf "%s: %s\n" "Vids Count" "${#vids[@]}"
-	printf "%s: %s\n" "Dirs Count" "${#dirs[@]}"
+	debug " "
+	debug "Name: ${name}"
+	debug "Parent: ${parent}"
+	debug "Path: ${path}"
+	debug "Vids Count: ${#vids[@]}"
+	debug "Dirs Count: ${#dirs[@]}"
 	
 	if (( "${#vids[@]}" > 0 )); then {
 		list="${name}.list.txt"
-		echo "Has Vids!"
+		listpath="${path}/${list}"
+		debug "Directory has vids."
 		if (ls -1N list*.txt &>/dev/null); then {
-			echo "Found Old List"
+			debug "Found [Old] List. Deleting..."
 		} fi
 		
-		if [[ -f "${path}/${list}" ]]; then {
-			echo "Found New List"
+		if [[ -f "${listpath}" ]]; then {
+			debug "Found [New] List. Skipping..."
 		} else {
-			echo "No New List"
-			printf -v entry "%s (%s)" "${name}" "${parent:-.}"
+			debug "Unable to find [New] List. Generating list..."
+			
+			
+			printf -v entry "%s\t(%s)" "${name}" "${parent:-.}"
+			debug "${entry}"
 			NEW_LIST+=("${entry}")
 		} fi
 	} fi
 	
 	if (( "${#dirs[@]}" > 0 )); then {
-		echo "Has Dirs!"
+		debug "Directory has subdirs!"
 		for dir in "${dirs[@]}"; do {
 			parseDir "${path}/${dir}"
 		} done
@@ -64,9 +80,30 @@ function parseDir() {
 }
 
 function printNewList() {
+	local path="${STARTING_DIR}"
+	local datetime
+	local filename
+	local filepath
+	
 	if (( ${#NEW_LIST[@]} > 0 )); then {
+		TIMESTAMP="$(date +"%Y-%m-%d %X")"
+		if (( $# > 0 )) && [[ -d "$1" ]]; then
+			path="$1"
+		fi
+		datetime="$(date -d "$TIMESTAMP" +"%Y%m%d_%H%M%S")"
+		filename="newlists--${datetime}.list.txt"
+		filepath="${path}/${filename}"
+		debug ""
+		debug "TIMESTAMP : ${TIMESTAMP}"
+		debug "datetime: ${datetime}"
+		debug "path: ${path}"
+		debug "filename: ${filename}"
+		debug "filepath: ${filepath}"
+		
+		printf "%s: %s\n" "Date/Time" "${TIMESTAMP}"
+		printf "%s: %s\n" "New List Items" "${#NEW_LIST[@]}"
 		echo ""
-		printf "%s\n" "${NEW_LIST[@]}"
+		printf "• %s\n" "${NEW_LIST[@]}"
 	} fi
 }
 
