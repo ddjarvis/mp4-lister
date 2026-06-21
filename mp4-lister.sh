@@ -13,9 +13,16 @@ function debug() {
 		if [[ "$1" == "." || "$1" == " " || "$1" == "" ]]; then {
 			echo ""
 		} else {
-			printf "\e[1;96m%s\e[0m %s\n" "[DEBUG]" "${1:-Lorem ipsum dolor sit amet...}"
+			printf "\e[1;96m%s\e[0m %s\n" "[DEBUG]" "${1:-Lorem ipsum dolor sit amet...}" 1>&2
 		} fi
 	fi
+}
+function log() {
+	if [[ "$1" == "." || "$1" == " " || "$1" == "" ]]; then {
+		echo ""
+	} else {
+		printf "\e[1;93m%s\e[0m %s\n" "[LOG]" "${1:-Lorem ipsum dolor sit amet...}" 1>&2
+	} fi
 }
 function getVids() {
 	ls -1Ntr *.mp4 2>/dev/null
@@ -51,6 +58,7 @@ function parseDir() {
 	debug "Path: ${path}"
 	debug "Vids Count: ${#vids[@]}"
 	debug "Dirs Count: ${#dirs[@]}"
+	log "Parsing Dir: ${name}"
 	
 	if (( "${#vids[@]}" > 0 )); then {
 		list="${name}.list.txt"
@@ -58,6 +66,7 @@ function parseDir() {
 		debug "Directory has vids."
 		if (ls -1N list*.txt &>/dev/null); then {
 			debug "Found [Old] List. Deleting..."
+			log "Deleting old list(s)..."
 			if (( DRYRUN == 0 )); then {
 				rm -f list*.txt 2>/dev/null
 			} else {
@@ -67,18 +76,20 @@ function parseDir() {
 		
 		if [[ -f "${listpath}" ]] && (( FORCE == 0 )); then {
 			debug "Found [New] List. Skipping..."
+			log "Directory already has list. Moving forward..."
 		} else {
 			if (( FORCE == 0 )); then {
 				debug "Unable to find [New] List. Generating list..."
 			} else {
 				debug "Force Mode is active. Generating list..."
 			} fi
+			log "Generating list..."
 			printf -v entry "%s\t(%s)" "${name}" "${parent:-.}"
 			debug "${entry}"
 			
 			if (( DRYRUN == 0 )); then {
 				generateList "${name}" "${parent}" "${path}" "${vids[@]}" >"${listpath}" \
-				&& printf "Saved List: %s\n" "${list}" \
+				&& log "Saved List: %s\n" "${list}" \
 				&& debug "Saved List to: ${listpath}"
 			} else {
 				generateList "${name}" "${parent}" "${path}" "${vids[@]}"
@@ -91,6 +102,7 @@ function parseDir() {
 	
 	if (( "${#dirs[@]}" > 0 )); then {
 		debug "Directory has subdirs!"
+		log "Identified subdirectories. Parsing..."
 		for dir in "${dirs[@]}"; do {
 			parseDir "${path}/${dir}"
 		} done
@@ -115,7 +127,7 @@ function generateList() {
 }
 
 function printNewList() {
-	local path="${STARTING_DIR}"
+	local path="${1}"
 	local dirpath
 	local datetime
 	local filename
@@ -124,9 +136,6 @@ function printNewList() {
 	if (( ${#NEW_LIST[@]} > 0 )); then {
 		TIMESTAMP="$(date +"%Y-%m-%d %X")"
 		datetime="$(date -d "$TIMESTAMP" +"%Y%m%d_%H%M%S")"
-		if (( $# > 0 )) && [[ -d "$1" ]]; then
-			path="$1"
-		fi
 		dirpath="${path}/.lists"
 		filename="newlists--${datetime}.list.txt"
 		filepath="${dirpath}/${filename}"
@@ -182,9 +191,20 @@ function parseArgs() {
 	debug "dryrun: ${dryrun}"
 	debug "force: ${force}"
 	debug "dir: ${dir}"
+	
+	DEBUG="${debug}"
+	DRYRUN="${dryrun}"
+	FORCE="${force}"
+	if [[ "${dir}" != "" && -d "${dir}" ]]; then STARTING_DIR="${dir}"; fi
 }
 
-# parseDir "${STARTING_DIR}"
-# printNewList
+function main() {
+	parseArgs "$@"
+	parseDir "${STARTING_DIR}"
+	log "Done parsing directories. Outputting new lists..."
+	printNewList "${STARTING_DIR}"
+}
 
-parseArgs "$@"
+main "$@"
+
+
