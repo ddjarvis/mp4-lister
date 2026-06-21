@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 declare -i DEBUG=1
+declare -i DRYRUN=1
 declare STARTING_DIR="/storage/emulated/0/Videos"
 declare -a NEW_LIST=()
 declare TIMESTAMP=""
@@ -56,6 +57,11 @@ function parseDir() {
 		debug "Directory has vids."
 		if (ls -1N list*.txt &>/dev/null); then {
 			debug "Found [Old] List. Deleting..."
+			if (( DRYRUN == 0 )); then {
+				rm -f list*.txt 2>/dev/null
+			} else {
+				ls -1N list*.txt
+			} fi
 		} fi
 		
 		if [[ -f "${listpath}" ]]; then {
@@ -65,7 +71,14 @@ function parseDir() {
 			printf -v entry "%s\t(%s)" "${name}" "${parent:-.}"
 			debug "${entry}"
 			
-			generateList "${name}" "${parent}" "${path}" "${vids[@]}"
+			if (( DRYRUN == 0 )); then {
+				generateList "${name}" "${parent}" "${path}" "${vids[@]}" >"${listpath}" \
+				&& printf "Saved List: %s\n" "${list}" \
+				&& debug "Saved List to: ${listpath}"
+			} else {
+				generateList "${name}" "${parent}" "${path}" "${vids[@]}"
+				debug "Saved List to: ${listpath}"
+			} fi
 			
 			NEW_LIST+=("${entry}")
 		} fi
@@ -98,30 +111,42 @@ function generateList() {
 
 function printNewList() {
 	local path="${STARTING_DIR}"
+	local dirpath
 	local datetime
 	local filename
 	local filepath
 	
 	if (( ${#NEW_LIST[@]} > 0 )); then {
 		TIMESTAMP="$(date +"%Y-%m-%d %X")"
+		datetime="$(date -d "$TIMESTAMP" +"%Y%m%d_%H%M%S")"
 		if (( $# > 0 )) && [[ -d "$1" ]]; then
 			path="$1"
 		fi
-		datetime="$(date -d "$TIMESTAMP" +"%Y%m%d_%H%M%S")"
+		dirpath="${path}/.lists"
 		filename="newlists--${datetime}.list.txt"
-		filepath="${path}/${filename}"
+		filepath="${dirpath}/${filename}"
 		debug ""
 		debug "TIMESTAMP : ${TIMESTAMP}"
 		debug "datetime: ${datetime}"
 		debug "path: ${path}"
+		debug "dirpath: ${dirpath}"
 		debug "filename: ${filename}"
 		debug "filepath: ${filepath}"
 		
-		printf "%s: %s\n" "Date/Time" "${TIMESTAMP}"
-		printf "%s: %s\n" "New List Items" "${#NEW_LIST[@]}"
-		echo ""
-		printf "• %s\n" "${NEW_LIST[@]}"
+		if (( DRYRUN == 0 )); then {
+			:
+		} else {
+			printNewList_generate
+			debug "Saved List to: ${filepath}"
+		} fi
 	} fi
+}
+
+function printNewList_generate() {
+	printf "%s: %s\n" "Date/Time" "${TIMESTAMP}"
+	printf "%s: %s\n" "New List Items" "${#NEW_LIST[@]}"
+	echo ""
+	printf "• %s\n" "${NEW_LIST[@]}"
 }
 
 parseDir "${STARTING_DIR}"
