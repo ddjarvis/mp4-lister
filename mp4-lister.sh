@@ -2,6 +2,7 @@
 
 declare -i DEBUG=1
 declare -i DRYRUN=1
+declare -i FORCE=0
 declare STARTING_DIR="/storage/emulated/0/Videos"
 declare -a NEW_LIST=()
 declare TIMESTAMP=""
@@ -64,10 +65,14 @@ function parseDir() {
 			} fi
 		} fi
 		
-		if [[ -f "${listpath}" ]]; then {
+		if [[ -f "${listpath}" ]] && (( FORCE == 0 )); then {
 			debug "Found [New] List. Skipping..."
 		} else {
-			debug "Unable to find [New] List. Generating list..."
+			if (( FORCE == 0 )); then {
+				debug "Unable to find [New] List. Generating list..."
+			} else {
+				debug "Force Mode is active. Generating list..."
+			} fi
 			printf -v entry "%s\t(%s)" "${name}" "${parent:-.}"
 			debug "${entry}"
 			
@@ -134,7 +139,10 @@ function printNewList() {
 		debug "filepath: ${filepath}"
 		
 		if (( DRYRUN == 0 )); then {
-			:
+			if [[ ! -d "${dirpath}" ]]; then mkdir -p "${dirpath}"; fi
+			printNewList_generate >"${filepath}" \
+			&& printf "Saved List: %s\n" "${filename}" \
+			&& debug "Saved List to: ${filepath}"
 		} else {
 			printNewList_generate
 			debug "Saved List to: ${filepath}"
@@ -149,6 +157,34 @@ function printNewList_generate() {
 	printf "• %s\n" "${NEW_LIST[@]}"
 }
 
-parseDir "${STARTING_DIR}"
+function parseArgs() {
+	local debug=0
+	local dryrun=0
+	local force=0
+	local dir=""
+	# Options/Arguments Parser (getopt)...
+	{
+		local OPT="$(getopt -o "dnf" -l "debug,dry-run,force" -- "$@" )"
+		eval set -- "${OPT}" && unset OPT
+		while true; do {
+			case "$1" in
+				-d | --debug ) debug=1; shift ;;
+				-n | --dry-run ) dryrun=1; shift ;;
+				-f | --force) force=1; shift ;;
+				-- ) shift ; break ;;
+				* ) shift ;;
+			esac
+		} done
+	}
+	if (( $# > 0 )); then dir="$(realpath "$1")"; fi
+	
+	debug "debug: ${debug}"
+	debug "dryrun: ${dryrun}"
+	debug "force: ${force}"
+	debug "dir: ${dir}"
+}
 
-printNewList
+# parseDir "${STARTING_DIR}"
+# printNewList
+
+parseArgs "$@"
