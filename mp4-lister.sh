@@ -31,6 +31,7 @@ function parseDir() {
 	local listpath
 	local dir
 	local entry
+	local err
 	local dirs=()
 	local vids=()
 	
@@ -61,10 +62,11 @@ function parseDir() {
 			debug "Found [New] List. Skipping..."
 		} else {
 			debug "Unable to find [New] List. Generating list..."
-			
-			
 			printf -v entry "%s\t(%s)" "${name}" "${parent:-.}"
 			debug "${entry}"
+			
+			generateList "${name}" "${parent}" "${path}" "${vids[@]}"
+			
 			NEW_LIST+=("${entry}")
 		} fi
 	} fi
@@ -77,6 +79,21 @@ function parseDir() {
 	} fi
 	
 	cd "${prevPath}"
+}
+
+function generateList() {
+	local name="$1"
+	local parent="$2"
+	local path="$3"
+	shift 3
+	
+	local vids=("$@")
+	echo "Name: ${name}"
+	echo "Dir: ${parent}"
+	echo "Path: ${path}"
+	echo ""
+	
+	printf "%s\n" "${vids[@]}"
 }
 
 function printNewList() {
